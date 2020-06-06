@@ -26,12 +26,32 @@ function create_vocabs {
 
 }
 
-
-marian \
-    --model pib.en-hi.npz   \
-    --train-sets $DATA_DIR/pib/en-hi/train.{en,hi} \
-    --valid-sets $DATA_DIR/mkb/en-hi/mkb.{en,hi} \
+COMMON_ARGS=(
     --vocabs $VOCABS_DIR/pib_en.spm $VOCABS_DIR/pib_hi.spm \
     --dim-vocabs 8000 8000 \
     --devices 1 2 3     \
-    --workspace=10000 --mini-batch-fit
+    --workspace=10000 
+)
+
+TRAIN_ARGS=(
+    --model pib.en-hi.npz   \
+    --save-freq 1000u --valid-freq 1000u \
+    --train-sets $DATA_DIR/pib/en-hi/train.{en,hi} \
+    --valid-sets $DATA_DIR/mkb/en-hi/mkb.{en,hi} \
+    --valid-metrics cross-entropy perplexity bleu-detok
+    --mini-batch-fit
+)
+
+DECODER_ARGS=(
+    -m pib.en-hi.npz
+)
+
+
+# Train
+function train {
+    marian \
+        "${COMMON_ARGS[@]}" \
+        "${TRAIN_ARGS[@]}"
+}
+
+cat ${DATA_DIR}/mkb/en-hi/mkb.en | marian-decoder "${COMMON_ARGS[@]}" "${DECODER_ARGS[@]}"
