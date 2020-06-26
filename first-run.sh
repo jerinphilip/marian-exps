@@ -10,6 +10,15 @@ export LD_LIBRARY_PATH="$MARIAN_INSTALLED_DIR/lib:$LD_LIBRARY_PATH".
 DATA_DIR="../data"
 VOCABS_DIR=$DATA_DIR/vocabs
 VOCAB_SIZE=8000
+SAVE_DIR="saves"
+LOGS_DIR="logs"
+
+mkdir -p $SAVE_DIR $LOGS_DIR
+
+SRC='hi'
+TGT='en'
+
+LOGFILE="${LOGS_DIR}/$(date +'%Y-%m-%dT%H-%M-%S').log"
 
 function create_vocabs {
     mkdir -p $VOCABS_DIR
@@ -23,27 +32,30 @@ function create_vocabs {
 
     mv $VOCABS_DIR/pib_en.{model,spm}
     mv $VOCABS_DIR/pib_hi.{model,spm}
-
 }
 
 COMMON_ARGS=(
-    --vocabs $VOCABS_DIR/pib_en.spm $VOCABS_DIR/pib_hi.spm \
-    --dim-vocabs 8000 8000 \
-    --devices 1 2 3     \
+    --vocabs $VOCABS_DIR/pib_{hi,en}.spm 
+    --dim-vocabs 8000 8000 
+    --devices 1 2 3     
     --workspace=10000 
+    --layer-normalization
 )
 
 TRAIN_ARGS=(
-    --model pib.en-hi.npz   \
-    --save-freq 1000u --valid-freq 1000u \
-    --train-sets $DATA_DIR/pib/en-hi/train.{en,hi} \
-    --valid-sets $DATA_DIR/mkb/en-hi/mkb.{en,hi} \
+    --model "$SAVE_DIR/pib.hi-en.npz"
+    --type transformer
+    --save-freq 500u --valid-freq 500u 
+    --train-sets $DATA_DIR/pib/en-hi/train.{hi,en} 
+    --valid-sets $DATA_DIR/mkb/en-hi/mkb.{hi,en} 
     --valid-metrics cross-entropy perplexity bleu-detok
-    --mini-batch-fit
+    --mini-batch-fit 
+    --log $LOGFILE
 )
 
 DECODER_ARGS=(
-    -m pib.en-hi.npz
+    -m "$SAVE_DIR/pib.en-hi.npz"
+    --quiet-translation
 )
 
 
@@ -54,4 +66,5 @@ function train {
         "${TRAIN_ARGS[@]}"
 }
 
-cat ${DATA_DIR}/mkb/en-hi/mkb.en | marian-decoder "${COMMON_ARGS[@]}" "${DECODER_ARGS[@]}"
+train
+# cat ${DATA_DIR}/mkb/en-hi/mkb.en | marian-decoder "${COMMON_ARGS[@]}" "${DECODER_ARGS[@]}"
